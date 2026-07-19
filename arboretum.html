@@ -1,0 +1,1410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Arboretum 0.9</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            --accent: #00dcb1;
+            --accent-strong: #00ffcc;
+            --body-bg: #0a0d10;
+            --sidebar-bg: #14191e;
+            --panel-bg: #1b2228;
+            --panel-border: #2c363e;
+            --text: #eef4f6;
+            --muted: #8c9aa3;
+            --subtle: #64727b;
+            --button-secondary: #2b343b;
+            --button-secondary-border: #414d55;
+            --viewport-bg: #10171d;
+            --sky-top: #67a8df;
+            --sky-bottom: #d8efff;
+            --sky-horizon: #edf8ff;
+            --loader-bg: rgba(7, 10, 12, 0.9);
+            --stats-bg: rgba(10, 15, 18, 0.68);
+            --stats-text: #afbdc5;
+        }
+
+        body[data-theme="light"] {
+            color-scheme: light;
+            --accent: #007c69;
+            --accent-strong: #009f83;
+            --body-bg: #eef2f4;
+            --sidebar-bg: #f8fafb;
+            --panel-bg: #ffffff;
+            --panel-border: #d8e0e4;
+            --text: #172126;
+            --muted: #526169;
+            --subtle: #6d7b82;
+            --button-secondary: #e5ebee;
+            --button-secondary-border: #c9d4d9;
+            --viewport-bg: #e8eef2;
+            --sky-top: #69ade2;
+            --sky-bottom: #d9f0ff;
+            --sky-horizon: #f6fbff;
+            --loader-bg: rgba(245, 249, 251, 0.92);
+            --stats-bg: rgba(255, 255, 255, 0.78);
+            --stats-text: #4c5b63;
+        }
+
+        * { box-sizing: border-box; }
+        body { margin: 0; background: var(--body-bg); color: var(--text); font-family: 'Segoe UI', sans-serif; display: flex; overflow: hidden; transition: background 0.25s ease, color 0.25s ease; }
+        #sidebar { width: 350px; height: 100vh; background: var(--sidebar-bg); border-right: 1px solid var(--panel-border); padding: 20px; overflow-y: auto; z-index: 10; transition: background 0.25s ease, border-color 0.25s ease; }
+        #viewport { flex-grow: 1; min-width: 0; height: 100vh; position: relative; background: var(--viewport-bg); transition: background 0.35s ease; }
+        #viewport.sky-enabled { background: linear-gradient(to bottom, var(--sky-top) 0%, var(--sky-bottom) 68%, var(--sky-horizon) 100%); }
+        #viewport canvas { display: block; }
+        h1 { color: var(--accent-strong); font-size: 1.3rem; margin: 0; text-transform: uppercase; letter-spacing: 2px; }
+        .subtitle { font-size: 0.7rem; color: var(--subtle); margin-bottom: 15px; text-transform: uppercase; }
+        .panel { background: var(--panel-bg); padding: 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--panel-border); transition: background 0.25s ease, border-color 0.25s ease; }
+        .panel-header { font-size: 0.65rem; font-weight: bold; color: var(--accent); margin-bottom: 8px; text-transform: uppercase; border-bottom: 1px solid var(--panel-border); padding-bottom: 4px; }
+        .label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+        label { font-size: 0.65rem; font-weight: bold; color: var(--muted); text-transform: uppercase; }
+        .val { font-family: monospace; font-size: 0.75rem; color: var(--accent); }
+        input[type="range"] { width: 100%; accent-color: var(--accent); cursor: pointer; margin-bottom: 8px; }
+        .choice-row { display: flex; align-items: center; gap: 8px; margin: 7px 0; }
+        .choice-row label { color: var(--muted); cursor: pointer; text-transform: none; }
+        input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); cursor: pointer; }
+        .base-options.disabled { opacity: 0.4; pointer-events: none; }
+        button { width: 100%; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-bottom: 8px; transition: transform 0.15s ease, filter 0.2s ease, background 0.25s ease, color 0.25s ease; font-family: inherit; }
+        button:hover { filter: brightness(1.06); }
+        button:active { transform: translateY(1px); }
+        button:focus-visible, input:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: 2px; }
+        .btn-primary { background: var(--accent-strong); color: #001a15; }
+        .btn-bake { background: var(--button-secondary); color: var(--text); border: 1px solid var(--button-secondary-border); }
+        #btn-download { background: #1e88e5; color: white; display: none; }
+        .theme-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 3px; margin-bottom: 10px; border: 1px solid var(--panel-border); border-radius: 8px; background: var(--body-bg); }
+        .theme-option { padding: 8px; margin: 0; border-radius: 5px; background: transparent; color: var(--muted); font-size: 0.68rem; letter-spacing: 0.04em; }
+        .theme-option.active { background: var(--accent); color: #001a15; box-shadow: 0 2px 8px rgba(0,0,0,0.18); }
+        .display-hint { margin: 2px 0 8px; color: var(--subtle); font-size: 0.62rem; line-height: 1.4; }
+        #loader { display: none; position: absolute; inset: 0; background: var(--loader-bg); color: var(--text); z-index: 100; flex-direction: column; justify-content: center; align-items: center; backdrop-filter: blur(3px); }
+        .spinner { border: 4px solid var(--panel-border); border-top: 4px solid var(--accent-strong); border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #stats { position: absolute; bottom: 18px; right: 18px; padding: 7px 10px; border-radius: 999px; background: var(--stats-bg); color: var(--stats-text); font-size: 0.7rem; pointer-events: none; backdrop-filter: blur(5px); }
+
+        @media (max-width: 760px) {
+            body { display: block; overflow: auto; }
+            #sidebar { width: 100%; height: auto; max-height: 52vh; border-right: 0; border-bottom: 1px solid var(--panel-border); }
+            #viewport { width: 100%; height: 48vh; min-height: 360px; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <h1>Arboretum <span style="font-size: 0.6em; opacity: 0.5;">v0.9</span></h1>
+    <div class="subtitle">3D printable tree armatures</div>
+    
+    <button class="btn-primary" id="btn-generate">GENERATE NEW PREVIEW</button>
+    <button class="btn-bake" id="btn-bake">BAKE SEAMLESS BARK</button>
+    <button id="btn-download">DOWNLOAD STL</button>
+
+    <div class="panel" id="display-panel">
+        <div class="panel-header">Viewport Appearance</div>
+        <div class="theme-toggle" role="group" aria-label="Colour theme">
+            <button type="button" class="theme-option active" data-theme-value="dark" aria-pressed="true">DARK</button>
+            <button type="button" class="theme-option" data-theme-value="light" aria-pressed="false">LIGHT</button>
+        </div>
+        <div class="label-row"><label for="p-exposure">Tree Brightness</label><span class="val" id="v-exposure">1.20×</span></div>
+        <input type="range" id="p-exposure" min="0.7" max="1.8" step="0.05" value="1.20">
+        <div class="choice-row">
+            <input type="checkbox" id="p-groundEnabled" checked>
+            <label for="p-groundEnabled">Green ground plane</label>
+        </div>
+        <div class="choice-row">
+            <input type="checkbox" id="p-skyEnabled">
+            <label for="p-skyEnabled">Gradient light blue sky</label>
+        </div>
+        <p class="display-hint">Appearance settings update instantly and do not regenerate or alter the printable model.</p>
+    </div>
+
+    <div class="panel">
+        <div class="panel-header">Bark Character</div>
+        <div class="label-row"><label>Ridge Density</label><span class="val" id="v-barkDensity">15.0</span></div>
+        <input type="range" id="p-barkDensity" min="2" max="60" step="0.1" value="15">
+        <div class="label-row"><label>Bark Depth</label><span class="val" id="v-barkDepth">1</span></div>
+        <input type="range" id="p-barkDepth" min="0" max="8" step="0.1" value="1">
+        <div class="label-row"><label>Grain Stretch</label><span class="val" id="v-barkY">2.0</span></div>
+        <input type="range" id="p-barkY" min="1" max="100" step="0.1" value="2">
+    </div>
+
+    <div class="panel">
+        <div class="panel-header">Growth Core (Height Calibrated)</div>
+        <div class="label-row"><label>Max Height (mm)</label><span class="val" id="v-height">250</span></div>
+        <input type="range" id="p-height" min="50" max="400" step="1" value="250">
+        <div class="label-row"><label>Trunk Dia</label><span class="val" id="v-trunk">18</span></div>
+        <input type="range" id="p-trunk" min="5" max="60" step="0.1" value="18">
+        <div class="label-row"><label>Unbranched H %</label><span class="val" id="v-unbranched">15</span></div>
+        <input type="range" id="p-unbranched" min="0" max="100" step="1" value="15">
+        <div class="label-row"><label>Gnarledness</label><span class="val" id="v-crook">25</span></div>
+        <input type="range" id="p-crook" min="0" max="100" step="1" value="25">
+        <div class="label-row"><label>Branch Frequency</label><span class="val" id="v-freq">8</span></div>
+        <input type="range" id="p-freq" min="1" max="25" step="1" value="8">
+        <div class="label-row"><label>Branch Size Reduction %</label><span class="val" id="v-branchReduction">8</span></div>
+        <input type="range" id="p-branchReduction" min="1" max="60" step="1" value="8">
+        <div class="label-row"><label>Branch Size Randomness ±%</label><span class="val" id="v-branchReductionRandom">12</span></div>
+        <input type="range" id="p-branchReductionRandom" min="0" max="40" step="1" value="12">
+        <div class="label-row"><label>Continuation Radius Reduction %</label><span class="val" id="v-continuationReduction">12</span></div>
+        <input type="range" id="p-continuationReduction" min="0" max="60" step="1" value="12">
+        <div class="label-row"><label>Fork Dominance Randomness</label><span class="val" id="v-forkDominanceRandom">50</span></div>
+        <input type="range" id="p-forkDominanceRandom" min="0" max="100" step="1" value="50">
+        <div class="label-row"><label>Branch Avoidance</label><span class="val" id="v-branchAvoidance">75</span></div>
+        <input type="range" id="p-branchAvoidance" min="0" max="100" step="1" value="75">
+        <div class="label-row"><label>Bushiness / Balance</label><span class="val" id="v-bushiness">65</span></div>
+        <input type="range" id="p-bushiness" min="0" max="100" step="1" value="65">
+    </div>
+
+    <div class="panel">
+        <div class="panel-header">Advanced Form</div>
+        <div class="label-row"><label>Taper</label><span class="val" id="v-taper">0.75</span></div>
+        <input type="range" id="p-taper" min="0.60" max="0.98" step="0.01" value="0.75">
+        <div class="label-row"><label>Min Branch Rad</label><span class="val" id="v-minRad">0.7</span></div>
+        <input type="range" id="p-minRad" min="0.1" max="5" step="0.1" value="0.7">
+        <div class="label-row"><label>Overhang (Max Deviation)</label><span class="val" id="v-overhang">35</span></div>
+        <input type="range" id="p-overhang" min="0" max="90" step="1" value="35">
+        <div class="label-row"><label>Min Print Angle</label><span class="val" id="v-minPrintAngle">45</span></div>
+        <input type="range" id="p-minPrintAngle" min="0" max="90" step="1" value="45">
+        <div class="label-row"><label>Gravity</label><span class="val" id="v-gravity">0.50</span></div>
+        <input type="range" id="p-gravity" min="0" max="1" step="0.01" value="0.50">
+        <div class="label-row"><label>Lower Straightening</label><span class="val" id="v-extraGravity">100</span></div>
+        <input type="range" id="p-extraGravity" min="0" max="1000" step="1" value="100">
+        <div class="label-row"><label>Extra Gravity Height %</label><span class="val" id="v-extraGravityHeight">35</span></div>
+        <input type="range" id="p-extraGravityHeight" min="5" max="100" step="1" value="35">
+    </div>
+
+    <div class="panel">
+        <div class="panel-header">Foundation</div>
+        <div class="label-row"><label>Root Flare</label><span class="val" id="v-roots">100</span></div>
+        <input type="range" id="p-roots" min="0" max="200" step="1" value="100">
+    </div>
+
+    <div class="panel">
+        <div class="panel-header">Display Base</div>
+        <div class="choice-row">
+            <input type="checkbox" id="p-baseEnabled" checked>
+            <label for="p-baseEnabled">Enable base</label>
+        </div>
+        <div id="base-options" class="base-options">
+            <div class="label-row"><label>Base Diameter</label><span class="val" id="v-base">80</span></div>
+            <input type="range" id="p-base" min="20" max="400" step="1" value="80">
+            <div class="label-row"><label>Base Thickness</label><span class="val" id="v-baseThickness">3.0</span></div>
+            <input type="range" id="p-baseThickness" min="2" max="5" step="0.1" value="3">
+            <div class="panel-header" style="margin-top:8px;">Edge Profile</div>
+            <div class="choice-row"><input type="radio" name="baseProfile" id="base-fillet" value="fillet" checked><label for="base-fillet">Filleted top rim</label></div>
+            <div class="choice-row"><input type="radio" name="baseProfile" id="base-vertical" value="vertical"><label for="base-vertical">Vertical edge</label></div>
+            <div class="choice-row"><input type="radio" name="baseProfile" id="base-chamfer" value="chamfer"><label for="base-chamfer">30° chamfer to ground</label></div>
+        </div>
+    </div>
+</div>
+
+<div id="viewport">
+    <div id="loader"><div class="spinner"></div><b id="l-text">FUSING GEOMETRY...</b></div>
+    <div id="stats">Ready</div>
+</div>
+
+<script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
+
+// --- NOISE ENGINE ---
+const p = new Uint8Array(512);
+const grad3 = [[1,1,0],[-1,1,0],[1,-1,0],[-1,-1,0],[1,0,1],[-1,0,1],[1,0,-1],[-1,0,-1],[0,1,1],[0,-1,1],[0,1,-1],[0,-1,-1]];
+function setupNoise(seed) {
+    const rng = mulberry32(seed);
+    for(let i=0; i<256; i++) p[i] = p[i+256] = Math.floor(rng() * 256);
+}
+function noise2D(x, y) {
+    let X = Math.floor(x) & 255, Y = Math.floor(y) & 255;
+    x -= Math.floor(x); y -= Math.floor(y);
+    let u = x*x*x*(x*(x*6-15)+10), v = y*y*y*(y*(y*6-15)+10);
+    const lerp = (t, a, b) => a + t * (b - a);
+    const dot = (g, x, y) => g[0]*x + g[1]*y;
+    let a = p[X]+Y, b = p[X+1]+Y;
+    return lerp(v, lerp(u, dot(grad3[p[a]%12], x, y), dot(grad3[p[b]%12], x-1, y)),
+                   lerp(u, dot(grad3[p[a+1]%12], x, y-1), dot(grad3[p[b+1]%12], x-1, y-1)));
+}
+function mulberry32(a) {
+    return function() {
+        var t = a += 0x6D2B79F5;
+        t = Math.imul(t ^ t >>> 15, t | 1);
+        t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    }
+}
+
+// --- GLOBALS ---
+let scene, camera, renderer, controls;
+let ambientLight, hemisphereLight, keyLight, fillLight, rimLight;
+let gridHelper, groundPlane;
+let currentPreviewMesh = null;
+let treeBranches = [];
+let currentSeed = Math.random();
+let finalPrintableGeo = null;
+const params = {};
+
+const displayState = {
+    theme: 'dark',
+    groundEnabled: true,
+    skyEnabled: false,
+    exposure: 1.20
+};
+
+function readDisplayPreference(key, fallback) {
+    try {
+        const value = localStorage.getItem(`arboretum-${key}`);
+        return value === null ? fallback : value;
+    } catch (_) {
+        return fallback;
+    }
+}
+
+function saveDisplayPreference(key, value) {
+    try { localStorage.setItem(`arboretum-${key}`, String(value)); }
+    catch (_) { /* Local storage can be unavailable for some file:// contexts. */ }
+}
+
+
+// --- BRANCH SPACE AWARENESS ---
+// Distance from a point to a finite branch centre-line segment.
+function pointSegmentDistance(point, a, b) {
+    const ab = b.clone().sub(a);
+    const denom = ab.lengthSq();
+    if (denom < 1e-10) return point.distanceTo(a);
+    const t = THREE.MathUtils.clamp(point.clone().sub(a).dot(ab) / denom, 0, 1);
+    return point.distanceTo(a.clone().addScaledVector(ab, t));
+}
+
+// Estimate the free space in front of a proposed child branch. The first part
+// of its path is ignored around the branch junction, where contact is wanted.
+function scoreBranchDirection(origin, direction, childRad, lookAhead) {
+    let minClearance = Infinity;
+    const samples = 5;
+    const junctionIgnore = Math.max(childRad * 2.2, 2.0);
+
+    for (let i = 1; i <= samples; i++) {
+        const travel = lookAhead * (i / samples);
+        const probe = origin.clone().addScaledVector(direction, travel);
+
+        for (const nodes of treeBranches) {
+            for (let j = 0; j < nodes.length - 1; j++) {
+                const a = nodes[j];
+                const b = nodes[j + 1];
+
+                // Nearby geometry belongs to the intended junction. Ignoring it
+                // prevents the parent trunk from rejecting every candidate.
+                if (origin.distanceTo(a.pos) < junctionIgnore || origin.distanceTo(b.pos) < junctionIgnore) continue;
+
+                const obstacleRad = Math.max(a.rad, b.rad);
+                const surfaceClearance = pointSegmentDistance(probe, a.pos, b.pos) - obstacleRad - childRad;
+                minClearance = Math.min(minClearance, surfaceClearance);
+            }
+        }
+    }
+    return minClearance;
+}
+
+
+// Score how much a candidate fills under-used canopy space when viewed from
+// above. This deliberately uses terminal positions rather than pushing every
+// branch radially away from the trunk: inward or crossing growth can still win
+// when it points into an otherwise empty sector.
+function scoreCanopyBalance(origin, direction, lookAhead) {
+    const sectorCount = 12;
+    const occupancy = new Array(sectorCount).fill(0);
+    let weightedX = 0, weightedZ = 0, totalWeight = 0;
+
+    for (const nodes of treeBranches) {
+        if (!nodes || nodes.length < 2) continue;
+        const tip = nodes[nodes.length - 1].pos;
+        const radial = Math.hypot(tip.x, tip.z);
+        if (radial < 1e-4) continue;
+
+        // High, outward terminals matter most because they are the parts most
+        // likely to carry foliage and define top-down canopy balance.
+        const heightWeight = THREE.MathUtils.clamp(tip.y / Math.max(params.height, 1), 0.15, 1.0);
+        const radialWeight = THREE.MathUtils.clamp(radial / Math.max(params.height * 0.35, 1), 0.2, 1.0);
+        const weight = heightWeight * radialWeight;
+        let angle = Math.atan2(tip.z, tip.x);
+        if (angle < 0) angle += Math.PI * 2;
+        const sector = Math.floor(angle / (Math.PI * 2) * sectorCount) % sectorCount;
+
+        // Spread occupancy into adjacent sectors so the heuristic does not
+        // create an artificial spoke pattern.
+        occupancy[sector] += weight;
+        occupancy[(sector + 1) % sectorCount] += weight * 0.35;
+        occupancy[(sector + sectorCount - 1) % sectorCount] += weight * 0.35;
+        weightedX += tip.x * weight;
+        weightedZ += tip.z * weight;
+        totalWeight += weight;
+    }
+
+    const projected = origin.clone().addScaledVector(direction, lookAhead);
+    const projectedRadial = Math.hypot(projected.x, projected.z);
+    if (projectedRadial < 1e-4) return 0;
+
+    let angle = Math.atan2(projected.z, projected.x);
+    if (angle < 0) angle += Math.PI * 2;
+    const fSector = angle / (Math.PI * 2) * sectorCount;
+    const i0 = Math.floor(fSector) % sectorCount;
+    const i1 = (i0 + 1) % sectorCount;
+    const frac = fSector - Math.floor(fSector);
+    const localOccupancy = THREE.MathUtils.lerp(occupancy[i0], occupancy[i1], frac);
+    const maxOccupancy = Math.max(0.0001, ...occupancy);
+    const scarcity = 1.0 - THREE.MathUtils.clamp(localOccupancy / maxOccupancy, 0, 1);
+
+    // Also favour the side opposite the current canopy's weighted centroid.
+    // This is a soft nudge, not a compulsory away-from-trunk rule.
+    let counterbalance = 0.5;
+    if (totalWeight > 0) {
+        const centroid = new THREE.Vector2(weightedX / totalWeight, weightedZ / totalWeight);
+        if (centroid.lengthSq() > 1e-8) {
+            centroid.normalize();
+            const candidate2D = new THREE.Vector2(projected.x, projected.z).normalize();
+            counterbalance = (1.0 - candidate2D.dot(centroid)) * 0.5;
+        }
+    }
+
+    return scarcity * 0.72 + counterbalance * 0.28;
+}
+
+// Try several directions around the parent's growth axis and choose the one
+// with the most open projected path. This avoids a crude always-radial rule.
+function chooseBranchDirection(origin, parentDir, childRad, branchLen, rng) {
+    const avoidance = params.branchAvoidance / 100;
+    const bushiness = params.bushiness / 100;
+    const attempts = 3 + Math.round(Math.max(avoidance, bushiness) * 9);
+    const lookAhead = Math.max(childRad * 6, branchLen * 0.55);
+    const up = Math.abs(parentDir.y) < 0.95 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+    const basisA = new THREE.Vector3().crossVectors(parentDir, up).normalize();
+    const basisB = new THREE.Vector3().crossVectors(parentDir, basisA).normalize();
+
+    let bestDir = null;
+    let bestScore = -Infinity;
+
+    for (let i = 0; i < attempts; i++) {
+        const azimuth = rng() * Math.PI * 2;
+        const forkAngle = THREE.MathUtils.degToRad(35 + rng() * 35);
+        const radial = basisA.clone().multiplyScalar(Math.cos(azimuth))
+            .addScaledVector(basisB, Math.sin(azimuth));
+        const candidate = parentDir.clone().multiplyScalar(Math.cos(forkAngle))
+            .addScaledVector(radial, Math.sin(forkAngle)).normalize();
+        const clearance = scoreBranchDirection(origin, candidate, childRad, lookAhead);
+        const balance = scoreCanopyBalance(origin, candidate, lookAhead);
+
+        // Clearance is measured in model units; canopy balance is normalized.
+        // Scale the latter by branch radius so both terms remain comparable.
+        // Randomness remains available when both controls are low.
+        const guidedAmount = Math.max(avoidance, bushiness);
+        const score = clearance * avoidance
+            + balance * bushiness * childRad * 3.0
+            + (rng() - 0.5) * childRad * (1 - guidedAmount);
+        if (score > bestScore) {
+            bestScore = score;
+            bestDir = candidate;
+        }
+    }
+
+    // Strong settings reject paths predicted to overlap another branch cylinder.
+    const requiredClearance = THREE.MathUtils.lerp(-childRad * 1.5, childRad * 0.35, avoidance);
+    return bestScore >= requiredClearance ? bestDir : null;
+}
+
+// --- GROWTH ENGINE ---
+function grow(pos, dir, rad, len, depth, accumDist, rng, existingNodes = null, isLeader = false) {
+    if (rad < params.minRad || depth > 12 || treeBranches.length > 4000) return;
+
+    const tipRadius = Math.max(0.05, params.minRad * 0.08);
+    const tipZone = Math.max(params.minRad * 2.5, params.height * 0.025);
+    if (pos.y >= params.height - tipRadius) return;
+
+    let currentNodes = existingNodes;
+    if (!currentNodes) {
+        currentNodes = [{ pos: pos.clone(), rad, dist: accumDist }];
+        treeBranches.push(currentNodes);
+    }
+
+    const steps = depth === 0 ? 12 : 5;
+    let curP = pos.clone();
+    let curR = rad;
+    let currentDir = dir.clone().normalize();
+
+    for (let i = 0; i < steps; i++) {
+        const remainingY = params.height - curP.y;
+        if (remainingY <= tipRadius) return;
+
+        // Begin narrowing before the height limit, rather than cutting a
+        // full-sized branch when it crosses an invisible ceiling.
+        const crownStart = isLeader ? 0.68 : 0.58;
+        const heightProgress = THREE.MathUtils.clamp(curP.y / params.height, 0, 1);
+        const crownT = THREE.MathUtils.smoothstep(heightProgress, crownStart, 1.0);
+        const normalTaper = Math.pow(params.taper, 1 / steps);
+        const crownTaper = THREE.MathUtils.lerp(1.0, 0.72, crownT);
+        curR *= normalTaper * crownTaper;
+
+        // In the final tip zone, allow the radius to taper below minRad so
+        // the branch can finish as a point. Elsewhere minRad still prunes it.
+        if (curR < params.minRad && remainingY > tipZone) break;
+
+        // Lower-trunk straightening combines two effects:
+        // 1. a powerful upward alignment, and
+        // 2. suppression of gnarled random drift near the ground.
+        // Both fade smoothly to zero at Extra Gravity Height.
+        const extraGravityTop = Math.max(1e-6, params.height * (params.extraGravityHeight / 100));
+        const lowerHeightT = THREE.MathUtils.clamp(curP.y / extraGravityTop, 0, 1);
+        const lowerGravityFalloff = 1.0 - THREE.MathUtils.smoothstep(lowerHeightT, 0, 1);
+        const lowerStrength = params.extraGravity * lowerGravityFalloff;
+
+        // Normal gravity remains global. Lower Straightening can now become
+        // effectively absolute at high settings without unstable lerp values.
+        const normalGravityBlend = 1.0 - Math.exp(-params.gravity * 0.08);
+        const lowerAlignmentBlend = 1.0 - Math.exp(-lowerStrength * 0.65);
+        currentDir.lerp(new THREE.Vector3(0, 1, 0), normalGravityBlend);
+        currentDir.lerp(new THREE.Vector3(0, 1, 0), lowerAlignmentBlend);
+
+        // Treat lower straightening as an inverse gnarledness modifier.
+        // At extreme values the basal trunk receives almost no lateral drift,
+        // while the crown returns to the full Gnarledness setting.
+        const gnarledRetention = Math.exp(-lowerStrength * 1.1);
+        const driftScale = params.crook * 0.02 * (1.0 - crownT * 0.75) * gnarledRetention;
+        const drift = new THREE.Vector3(
+            rng() - 0.5,
+            (rng() - 0.5) * 0.2,
+            rng() - 0.5
+        ).multiplyScalar(driftScale);
+        currentDir.add(drift).normalize();
+
+        // Reassert alignment after drift. This makes the far end of the slider
+        // capable of producing a nearly ruler-straight sapling trunk.
+        currentDir.lerp(new THREE.Vector3(0, 1, 0), lowerAlignmentBlend);
+
+        const up = new THREE.Vector3(0, 1, 0);
+        const maxVerticalRad = THREE.MathUtils.degToRad(params.overhang);
+        if (currentDir.angleTo(up) > maxVerticalRad) {
+            const axis = new THREE.Vector3().crossVectors(up, currentDir);
+            if (axis.lengthSq() > 1e-10) {
+                axis.normalize();
+                currentDir.copy(up).applyAxisAngle(axis, maxVerticalRad);
+            }
+        }
+
+        const maxRadFromVertical = (Math.PI / 2) - THREE.MathUtils.degToRad(params.minPrintAngle);
+        if (currentDir.angleTo(up) > maxRadFromVertical) {
+            const axis = new THREE.Vector3().crossVectors(up, currentDir);
+            if (axis.lengthSq() > 1e-10) {
+                axis.normalize();
+                currentDir.copy(up).applyAxisAngle(axis, maxRadFromVertical);
+            }
+        }
+
+        // Height controls the growth budget. Segment length gradually shrinks
+        // in the crown, and can never spend more vertical distance than remains.
+        const nominalStep = Math.max(curR * 0.8, len / steps);
+        const crownStepScale = THREE.MathUtils.lerp(1.0, 0.30, crownT);
+        let stepLen = nominalStep * crownStepScale;
+
+        const verticalComponent = Math.max(currentDir.y, 0.08);
+        const distanceToCeiling = remainingY / verticalComponent;
+        stepLen = Math.min(stepLen, distanceToCeiling);
+
+        let nextP = curP.clone().add(currentDir.clone().multiplyScalar(stepLen));
+        let nextR = curR;
+
+        // Crossing the target height creates a tapered terminal node, not a
+        // flat, full-radius cut. The preceding crown taper makes this subtle.
+        if (nextP.y >= params.height - tipRadius || remainingY <= tipZone) {
+            const targetY = params.height;
+            const travelToTip = (targetY - curP.y) / verticalComponent;
+            nextP = curP.clone().add(currentDir.clone().multiplyScalar(Math.max(0, travelToTip)));
+            nextP.y = targetY;
+            nextR = tipRadius;
+            accumDist += curP.distanceTo(nextP);
+            currentNodes.push({ pos: nextP, rad: nextR, dist: accumDist });
+            return;
+        }
+
+        accumDist += stepLen;
+        currentNodes.push({ pos: nextP.clone(), rad: nextR, dist: accumDist });
+
+        const unbranchedThreshold = (params.unbranched / 100) * params.height;
+        const branchSuppression = 1.0 - THREE.MathUtils.smoothstep(heightProgress, 0.55, 0.92);
+        const canBranch = depth > 0 || accumDist > unbranchedThreshold;
+
+        // Randomize the reduction per fork around the user's base value. The
+        // same sampled scale drives radius and length, keeping each branch
+        // internally coherent while breaking up the overly uniform hierarchy.
+        const reductionJitter = (rng() * 2.0 - 1.0) * params.branchReductionRandom;
+        const sampledReduction = THREE.MathUtils.clamp(
+            params.branchReduction + reductionJitter,
+            0,
+            85
+        );
+
+        // A fork now divides growth between both outgoing paths. The side
+        // branch starts with the sampled reduction, while the continuation
+        // receives a configurable fraction of that reduction. A signed
+        // dominance jitter can occasionally make either fork the stronger one
+        // without changing the overall character of the tree.
+        const dominance = (rng() * 2.0 - 1.0) * (params.forkDominanceRandom / 100);
+        const dominanceShift = dominance * sampledReduction * 0.75;
+        const childReduction = THREE.MathUtils.clamp(
+            sampledReduction + dominanceShift,
+            0,
+            85
+        );
+        // This is now a direct radius reduction percentage, rather than a
+        // percentage of the child reduction. The previous default of 35% only
+        // meant 35% of a typical 20% child reduction (about 7%), which was
+        // visually very subtle and easy to mistake for no effect.
+        const continuationForkReduction = THREE.MathUtils.clamp(
+            params.continuationReduction - dominanceShift,
+            0,
+            70
+        );
+        const branchScale = 1.0 - (childReduction / 100);
+        const continuationForkScale = 1.0 - (continuationForkReduction / 100);
+
+        if (canBranch && curR * branchScale >= params.minRad && rng() < (params.freq / 100) * branchSuppression) {
+            // Side branches inherit the sampled proportion of both radius and
+            // growth length, then receive only the remaining vertical budget.
+            const childRad = curR * branchScale;
+            const availableFraction = THREE.MathUtils.clamp((params.height - nextP.y) / params.height, 0.08, 1.0);
+            const branchLen = len * branchScale * Math.sqrt(availableFraction);
+
+            // Sample a fan of plausible forks and select the direction with the
+            // clearest projected cylinder path. A crowded fork may be skipped.
+            const bDir = chooseBranchDirection(nextP, currentDir, childRad, branchLen, rng);
+            if (bDir) {
+                // Build a short embedded junction before normal child growth.
+                // Tucking backwards along bDir can push the circular start cap
+                // through the far side of the parent. Instead, find the child's
+                // outward component relative to the parent axis and tunnel from
+                // inside the parent toward that side.
+                const axialAmount = bDir.dot(currentDir);
+                const outward = bDir.clone().addScaledVector(currentDir, -axialAmount);
+                if (outward.lengthSq() < 1e-8) {
+                    // Rare near-parallel fork: choose any stable perpendicular.
+                    const helper = Math.abs(currentDir.y) < 0.9
+                        ? new THREE.Vector3(0, 1, 0)
+                        : new THREE.Vector3(1, 0, 0);
+                    outward.crossVectors(currentDir, helper);
+                }
+                outward.normalize();
+
+                // The first ring is narrow and buried well inside the parent.
+                // A second "shoulder" ring approaches the near surface before
+                // the branch reaches full radius. This greatly reduces visible
+                // back-side plugs while retaining enough overlap for fusion.
+                const buriedDepth = Math.min(curR * 0.72, childRad * 1.15);
+                const shoulderReach = Math.max(curR * 0.28, childRad * 0.35);
+                const startP = nextP.clone()
+                    .addScaledVector(outward, -buriedDepth)
+                    .addScaledVector(currentDir, -childRad * 0.12);
+                const shoulderP = nextP.clone()
+                    .addScaledVector(outward, shoulderReach)
+                    .addScaledVector(bDir, childRad * 0.18);
+
+                const junctionDist = startP.distanceTo(shoulderP);
+                const junctionNodes = [
+                    { pos: startP, rad: Math.max(0.05, childRad * 0.38), dist: 0 },
+                    { pos: shoulderP, rad: childRad * 0.82, dist: junctionDist }
+                ];
+
+                // Because grow() only registers a branch when existingNodes is
+                // null, explicitly register this prebuilt junction path before
+                // continuing its growth. Without this, the child grows into an
+                // array that is never included in preview or baked geometry.
+                treeBranches.push(junctionNodes);
+
+                grow(shoulderP, bDir, childRad, branchLen, depth + 1,
+                    junctionDist, rng, junctionNodes, false);
+
+                // Only spend continuation flow when a child branch was
+                // actually accepted. Keep the fork node at the incoming radius,
+                // then insert a short continuation shoulder with the reduced
+                // radius immediately. This makes the flow split explicit in the
+                // generated centreline instead of delaying it until a later loop.
+                const incomingContinuationR = curR;
+                const reducedContinuationR = curR * continuationForkScale;
+                const continuationShoulderLen = Math.max(
+                    reducedContinuationR * 0.65,
+                    Math.min(stepLen * 0.42, incomingContinuationR * 1.25)
+                );
+                const continuationShoulderP = nextP.clone().addScaledVector(
+                    currentDir,
+                    continuationShoulderLen
+                );
+
+                // Do not let the shoulder overshoot the requested tree height.
+                if (continuationShoulderP.y < params.height - tipRadius) {
+                    accumDist += continuationShoulderLen;
+                    currentNodes.push({
+                        pos: continuationShoulderP.clone(),
+                        rad: reducedContinuationR,
+                        dist: accumDist
+                    });
+                    nextP = continuationShoulderP;
+                }
+                curR = reducedContinuationR;
+            }
+        }
+
+        curP = nextP;
+    }
+
+    if (curR >= params.minRad || params.height - curP.y <= tipZone) {
+        const continuationLen = len * (isLeader ? 0.82 : 0.74);
+        grow(curP, currentDir, curR, continuationLen, depth + 1, accumDist, rng, currentNodes, isLeader);
+    }
+}
+function clampRootPointToBase(point, radius) {
+    if (!params.baseEnabled) return false;
+    // Keep the whole root cylinder inside the base footprint, not just
+    // the root centreline. Bark displacement can add a little extra width
+    // during baking, so reserve that too.
+    const baseRadius = params.base / 2;
+    const barkAllowance = Math.max(0, params.barkDepth || 0);
+    const safeCenterRadius = Math.max(0, baseRadius - radius - barkAllowance);
+    const radial = Math.hypot(point.x, point.z);
+
+    if (radial <= safeCenterRadius || radial < 0.00001) return false;
+
+    const scale = safeCenterRadius / radial;
+    point.x *= scale;
+    point.z *= scale;
+    return true;
+}
+
+function growRoots(rng) {
+    const count = 5 + Math.floor(params.roots * 12);
+    for(let i=0; i<count; i++) {
+        const angle = ((i / count) * Math.PI * 2) + ((rng() - 0.5) * 0.5);
+        const startH = (params.trunk * 0.4) + (rng() * params.trunk * 0.3);
+        let r1 = (params.trunk * 0.45) * (0.7 + rng() * 0.5);
+
+        // Build a two-stage root collar rather than starting a full-width root
+        // on the trunk centreline. A large first ring can protrude through the
+        // opposite side of the trunk because its tube frame is already tilted
+        // toward the root. The narrow embedded anchor and outward shoulder keep
+        // that back side inside the trunk while retaining plenty of overlap.
+        const outward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle)).normalize();
+        const anchorP = new THREE.Vector3(0, startH - Math.min(1.5, params.trunk * 0.05), 0);
+        const shoulderOffset = Math.max(params.trunk * 0.18, r1 * 0.35);
+        const shoulderP = anchorP.clone()
+            .addScaledVector(outward, shoulderOffset)
+            .add(new THREE.Vector3(0, -Math.min(2.0, r1 * 0.18), 0));
+
+        const anchorRad = Math.max(0.35, Math.min(r1 * 0.34, params.trunk * 0.16));
+        const shoulderRad = Math.max(anchorRad, r1 * 0.76);
+        const shoulderDist = anchorP.distanceTo(shoulderP);
+        let nodes = [
+            {pos: anchorP, rad: anchorRad, dist: 0},
+            {pos: shoulderP.clone(), rad: shoulderRad, dist: shoulderDist}
+        ];
+        treeBranches.push(nodes);
+        let p1 = shoulderP;
+        r1 = shoulderRad;
+
+        // The old root flare could exceed the printable plinth when the
+        // base diameter was reduced. We still let the root aim outward,
+        // but clamp its terminal centreline so the resulting cylinder
+        // remains inside the base radius.
+        const flare = (params.trunk * 0.6) + (params.roots * 70 * (0.6 + rng() * 0.6));
+        const steps = 6 + Math.floor(rng() * 4);
+        for(let j=0; j<steps; j++) {
+            const hDir = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
+            hDir.x += (rng()-0.5) * (params.crook * 0.02);
+            hDir.z += (rng()-0.5) * (params.crook * 0.02);
+            hDir.normalize();
+            const moveDir = hDir.clone().add(new THREE.Vector3(0, -0.6 - (rng()*0.3), 0)).normalize();
+            const p2 = p1.clone().add(moveDir.multiplyScalar(flare/steps));
+            if(p2.y < 0.5) p2.y = 0.5;
+            r1 *= (0.7 + rng() * 0.15);
+
+            const hitBaseEdge = clampRootPointToBase(p2, r1);
+            const nodeDist = nodes[nodes.length - 1].dist + p1.distanceTo(p2);
+            nodes.push({pos: p2.clone(), rad: r1, dist: nodeDist});
+            p1 = p2;
+
+            // If the base boundary stops this root, add one final tapered node
+            // beneath the plinth surface. The end cap is then hidden inside the
+            // base rather than appearing as a flat circular cut at its edge.
+            if (hitBaseEdge) {
+                const burialDepth = Math.min(4.0, Math.max(2.0, r1 * 0.75));
+                const buriedTip = p2.clone();
+
+                // Pull slightly inward as well as downward, ensuring bark
+                // displacement cannot expose the terminal cap at the rim.
+                const inward = new THREE.Vector3(-buriedTip.x, 0, -buriedTip.z);
+                if (inward.lengthSq() > 1e-10) {
+                    inward.normalize();
+                    buriedTip.addScaledVector(inward, Math.min(2.0, r1 * 0.4));
+                }
+                buriedTip.y = Math.max(0.1, buriedTip.y - burialDepth);
+
+                nodes.push({
+                    pos: buriedTip,
+                    rad: Math.max(0.12, r1 * 0.22),
+                    dist: nodeDist + p2.distanceTo(buriedTip)
+                });
+                break;
+            }
+
+            if(r1 < 1.0) break;
+        }
+    }
+}
+
+// --- MANIFOLD GEOMETRY ENGINE ---
+// Smooth the generated armature before turning it into tube geometry.
+// Chaikin corner cutting stays inside the original control polygon, so it
+// rounds bends without the overshoot that spline interpolation can introduce.
+function smoothBranchNodes(nodes, iterations = 2) {
+    if (nodes.length < 3 || iterations <= 0) return nodes;
+
+    let result = nodes.map(node => ({
+        pos: node.pos.clone(),
+        rad: node.rad,
+        dist: node.dist
+    }));
+
+    for (let pass = 0; pass < iterations; pass++) {
+        const smoothed = [result[0]];
+
+        for (let i = 0; i < result.length - 1; i++) {
+            const a = result[i];
+            const b = result[i + 1];
+
+            smoothed.push({
+                pos: a.pos.clone().lerp(b.pos, 0.25),
+                rad: THREE.MathUtils.lerp(a.rad, b.rad, 0.25),
+                dist: THREE.MathUtils.lerp(a.dist, b.dist, 0.25)
+            });
+            smoothed.push({
+                pos: a.pos.clone().lerp(b.pos, 0.75),
+                rad: THREE.MathUtils.lerp(a.rad, b.rad, 0.75),
+                dist: THREE.MathUtils.lerp(a.dist, b.dist, 0.75)
+            });
+        }
+
+        smoothed.push(result[result.length - 1]);
+        result = smoothed;
+    }
+
+    // Rebuild flow distance from the actual smoothed centerline.
+    let accumulated = result[0].dist || 0;
+    result[0].dist = accumulated;
+    for (let i = 1; i < result.length; i++) {
+        accumulated += result[i - 1].pos.distanceTo(result[i].pos);
+        result[i].dist = accumulated;
+    }
+
+    return result;
+}
+
+function buildBranchGeometry(nodes, radialSegments, withFlow = false) {
+    if (nodes.length < 2) return null;
+    nodes = smoothBranchNodes(nodes, withFlow ? 2 : 2);
+    const vertices = [], indices = [], flowCoords = [], normals = [], radii = [], frames = [];
+
+    // Parallel Transport
+    for (let i = 0; i < nodes.length; i++) {
+        let tangent;
+        if (i === 0) tangent = nodes[i+1].pos.clone().sub(nodes[i].pos).normalize();
+        else if (i === nodes.length - 1) tangent = nodes[i].pos.clone().sub(nodes[i-1].pos).normalize();
+        else {
+            const d1 = nodes[i].pos.clone().sub(nodes[i-1].pos).normalize();
+            const d2 = nodes[i+1].pos.clone().sub(nodes[i].pos).normalize();
+            tangent = d1.add(d2).normalize();
+        }
+        if (i === 0) {
+            let vec = new THREE.Vector3(1, 0, 0);
+            if (Math.abs(tangent.x) > 0.9) vec.set(0, 1, 0);
+            const n = new THREE.Vector3().crossVectors(tangent, vec).normalize();
+            const b = new THREE.Vector3().crossVectors(tangent, n).normalize();
+            frames.push({ n, b, t: tangent });
+        } else {
+            const prev = frames[i - 1];
+            const axis = new THREE.Vector3().crossVectors(prev.t, tangent);
+            const nextFrame = { n: prev.n.clone(), b: prev.b.clone(), t: tangent.clone() };
+            if (axis.length() > 0.00001) {
+                axis.normalize();
+                const angle = Math.acos(THREE.MathUtils.clamp(prev.t.dot(tangent), -1, 1));
+                nextFrame.n.applyAxisAngle(axis, angle).normalize();
+                nextFrame.b.applyAxisAngle(axis, angle).normalize();
+            }
+            frames.push(nextFrame);
+        }
+    }
+
+    for (let i = 0; i < nodes.length; i++) {
+        const node = nodes[i], frame = frames[i];
+        for (let j = 0; j < radialSegments; j++) {
+            const angle = (j / radialSegments) * Math.PI * 2;
+            const v = new THREE.Vector3().copy(frame.n).multiplyScalar(Math.cos(angle)).add(new THREE.Vector3().copy(frame.b).multiplyScalar(Math.sin(angle)));
+            normals.push(v.x, v.y, v.z);
+            const p = node.pos.clone().add(v.multiplyScalar(node.rad));
+            
+            // FLOOR CLAMP: Ensures flat print bed contact
+            const finalY = Math.max(0, p.y);
+            vertices.push(p.x, finalY, p.z);
+            
+            radii.push(node.rad);
+            if (withFlow) flowCoords.push(angle, node.dist);
+        }
+    }
+
+    for (let i = 0; i < nodes.length - 1; i++) {
+        for (let j = 0; j < radialSegments; j++) {
+            const r1 = i * radialSegments, r2 = (i + 1) * radialSegments;
+            const jNext = (j + 1) % radialSegments;
+            const a = r1 + j, b = r1 + jNext, c = r2 + jNext, d = r2 + j;
+            indices.push(a, b, d); indices.push(b, c, d);
+        }
+    }
+
+    // SOLID CAPS
+    const startIdx = vertices.length / 3;
+    vertices.push(nodes[0].pos.x, Math.max(0, nodes[0].pos.y), nodes[0].pos.z);
+    normals.push(-frames[0].t.x, -frames[0].t.y, -frames[0].t.z);
+    radii.push(nodes[0].rad);
+    if (withFlow) flowCoords.push(0, nodes[0].dist);
+    for (let j = 0; j < radialSegments; j++) {
+        const jNext = (j + 1) % radialSegments;
+        indices.push(startIdx, jNext, j);
+    }
+
+    const endIdx = vertices.length / 3;
+    const lastNode = nodes[nodes.length - 1];
+    vertices.push(lastNode.pos.x, Math.max(0, lastNode.pos.y), lastNode.pos.z);
+    normals.push(frames[frames.length - 1].t.x, frames[frames.length - 1].t.y, frames[frames.length - 1].t.z);
+    radii.push(lastNode.rad);
+    if (withFlow) flowCoords.push(0, lastNode.dist);
+    const lastRingStart = (nodes.length - 1) * radialSegments;
+    for (let j = 0; j < radialSegments; j++) {
+        const jNext = (j + 1) % radialSegments;
+        indices.push(endIdx, lastRingStart + j, lastRingStart + jNext);
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+    geo.setAttribute('aRadius', new THREE.Float32BufferAttribute(radii, 1));
+    if (withFlow) geo.setAttribute('aFlow', new THREE.Float32BufferAttribute(flowCoords, 2));
+    geo.setIndex(indices);
+    return geo;
+}
+
+function createBaseGeometry(radialSegments = 64) {
+    if (!params.baseEnabled) return null;
+
+    const radius = params.base / 2;
+    const height = params.baseThickness;
+    let geo;
+
+    if (params.baseProfile === 'vertical') {
+        geo = new THREE.CylinderGeometry(radius, radius, height, radialSegments, 1, false);
+        geo.translate(0, height / 2, 0);
+    } else {
+        const points = [new THREE.Vector2(0, 0), new THREE.Vector2(radius, 0)];
+
+        if (params.baseProfile === 'chamfer') {
+            // Thirty degrees above the build plate, like a traditional gaming base.
+            const inset = Math.min(radius * 0.8, height / Math.tan(THREE.MathUtils.degToRad(30)));
+            points.push(new THREE.Vector2(Math.max(0.5, radius - inset), height));
+        } else {
+            // Quarter-round top rim. Keep a short vertical lower wall so the base
+            // remains visually substantial even at the minimum 2 mm thickness.
+            const filletRadius = Math.min(height * 0.72, radius * 0.18);
+            const verticalTop = Math.max(0, height - filletRadius);
+            points.push(new THREE.Vector2(radius, verticalTop));
+            const arcSteps = 8;
+            for (let i = 1; i <= arcSteps; i++) {
+                const a = (i / arcSteps) * Math.PI / 2;
+                points.push(new THREE.Vector2(
+                    radius - filletRadius + Math.cos(a) * filletRadius,
+                    verticalTop + Math.sin(a) * filletRadius
+                ));
+            }
+        }
+
+        points.push(new THREE.Vector2(0, height));
+        geo = new THREE.LatheGeometry(points, radialSegments);
+    }
+
+    geo.deleteAttribute('uv');
+    geo.computeVertexNormals();
+    return geo;
+}
+
+function createTreeMaterial(isBaked = false) {
+    const isLight = displayState.theme === 'light';
+    const color = isBaked
+        ? (isLight ? 0x6b432e : 0x9a6648)
+        : (isLight ? 0x795039 : 0xa46e4e);
+
+    return new THREE.MeshStandardMaterial({
+        color,
+        roughness: isBaked ? 0.88 : 0.76,
+        metalness: 0.0,
+        emissive: isLight ? 0x000000 : 0x160b06,
+        emissiveIntensity: isLight ? 0 : 0.18
+    });
+}
+
+function refreshTreeMaterial() {
+    if (!currentPreviewMesh || currentPreviewMesh.userData.materialTheme === displayState.theme) return;
+    const oldMaterial = currentPreviewMesh.material;
+    currentPreviewMesh.material = createTreeMaterial(Boolean(currentPreviewMesh.userData.isBaked));
+    currentPreviewMesh.userData.materialTheme = displayState.theme;
+    if (oldMaterial && oldMaterial.dispose) oldMaterial.dispose();
+}
+
+function createGridHelper() {
+    const signature = `${displayState.theme}-${displayState.groundEnabled}`;
+    if (gridHelper && gridHelper.userData.signature === signature) return;
+    if (gridHelper) {
+        scene.remove(gridHelper);
+        gridHelper.geometry.dispose();
+        const oldMaterials = Array.isArray(gridHelper.material) ? gridHelper.material : [gridHelper.material];
+        oldMaterials.forEach(material => material.dispose());
+    }
+    const isLight = displayState.theme === 'light';
+    gridHelper = new THREE.GridHelper(
+        500,
+        20,
+        isLight ? 0x61727c : 0x67808d,
+        isLight ? 0xa8b4ba : 0x344651
+    );
+    gridHelper.position.y = 0.035;
+    const materials = Array.isArray(gridHelper.material) ? gridHelper.material : [gridHelper.material];
+    materials.forEach(material => {
+        material.transparent = true;
+        material.opacity = displayState.groundEnabled ? 0.28 : 0.62;
+        material.depthWrite = false;
+    });
+    gridHelper.userData.signature = signature;
+    scene.add(gridHelper);
+}
+
+function createGroundPlane() {
+    const geometry = new THREE.PlaneGeometry(700, 700);
+    const material = new THREE.MeshStandardMaterial({
+        color: displayState.theme === 'light' ? 0x78a85c : 0x356b3a,
+        roughness: 1.0,
+        metalness: 0.0
+    });
+    groundPlane = new THREE.Mesh(geometry, material);
+    groundPlane.rotation.x = -Math.PI / 2;
+    groundPlane.position.y = -0.025;
+    groundPlane.receiveShadow = true;
+    groundPlane.visible = displayState.groundEnabled;
+    scene.add(groundPlane);
+}
+
+function applyDisplaySettings() {
+    const isLight = displayState.theme === 'light';
+    document.body.dataset.theme = displayState.theme;
+    document.getElementById('viewport').classList.toggle('sky-enabled', displayState.skyEnabled);
+
+    document.querySelectorAll('.theme-option').forEach(button => {
+        const active = button.dataset.themeValue === displayState.theme;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', String(active));
+    });
+
+    if (renderer) {
+        renderer.toneMappingExposure = displayState.exposure * (isLight ? 1.02 : 1.12);
+        renderer.setClearColor(0x000000, 0);
+    }
+
+    if (ambientLight) ambientLight.intensity = isLight ? 0.72 : 0.9;
+    if (hemisphereLight) {
+        hemisphereLight.intensity = isLight ? 1.12 : 1.42;
+        hemisphereLight.color.set(isLight ? 0xe8f5ff : 0xc5e5ff);
+        hemisphereLight.groundColor.set(isLight ? 0x8c765f : 0x3e2d23);
+    }
+    if (keyLight) {
+        keyLight.intensity = isLight ? 2.15 : 2.55;
+        keyLight.castShadow = displayState.groundEnabled;
+    }
+    if (fillLight) fillLight.intensity = isLight ? 0.9 : 1.28;
+    if (rimLight) rimLight.intensity = isLight ? 0.72 : 1.08;
+
+    if (groundPlane) {
+        groundPlane.visible = displayState.groundEnabled;
+        groundPlane.material.color.set(isLight ? 0x78a85c : 0x356b3a);
+    }
+    if (currentPreviewMesh) currentPreviewMesh.castShadow = displayState.groundEnabled;
+
+    createGridHelper();
+    refreshTreeMaterial();
+}
+
+function updatePreview() {
+    if(currentPreviewMesh) scene.remove(currentPreviewMesh);
+    treeBranches = [];
+    const rng = mulberry32(currentSeed * 10000);
+    growRoots(rng);
+    
+    // HEIGHT FIX: Initial segment length is calibrated (Sum of series a/(1-r))
+    // Starting with 0.2 of height ensures a natural growth that targets the slider value.
+    // Height is now a growth budget, not a clipping plane. The leader gets a
+    // length proportional to target height; its crown taper brings it to a point.
+    grow(
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(0, 1, 0),
+        params.trunk / 2,
+        params.height * 0.18,
+        0,
+        0,
+        rng,
+        null,
+        true
+    );
+    
+    const geos = treeBranches.map(b => {
+        const g = buildBranchGeometry(b, 14, false);
+        if(g) g.deleteAttribute('aRadius');
+        return g;
+    }).filter(g => g);
+
+    const base = createBaseGeometry(48);
+    if (base) geos.push(base);
+
+    if (geos.length > 0) {
+        const merged = BufferGeometryUtils.mergeGeometries(geos);
+        currentPreviewMesh = new THREE.Mesh(merged, createTreeMaterial(false));
+        currentPreviewMesh.castShadow = displayState.groundEnabled;
+        currentPreviewMesh.receiveShadow = true;
+        currentPreviewMesh.userData.isBaked = false;
+        currentPreviewMesh.userData.materialTheme = displayState.theme;
+        scene.add(currentPreviewMesh);
+        document.getElementById('stats').innerText = `${treeBranches.length} discrete armatures`;
+    }
+}
+
+async function runBake() {
+    document.getElementById('loader').style.display = 'flex';
+    setupNoise(currentSeed * 1234);
+    await new Promise(r => setTimeout(r, 50));
+    try {
+        const geos = treeBranches.map(b => buildBranchGeometry(b, 48, true)).filter(g => g);
+        let treeOnly = BufferGeometryUtils.mergeGeometries(geos);
+        
+        const pos = treeOnly.attributes.position, norm = treeOnly.attributes.normal, flow = treeOnly.attributes.aFlow, radAttr = treeOnly.attributes.aRadius;
+        const v = new THREE.Vector3(), nVec = new THREE.Vector3();
+        
+        for(let i=0; i<pos.count; i++) {
+            v.fromBufferAttribute(pos, i); nVec.fromBufferAttribute(norm, i);
+            const localRad = radAttr.getX(i);
+            const distOnBranch = flow.getY(i);
+            const noiseVal = noise2D(flow.getX(i) * params.barkDensity, distOnBranch / (params.barkY * 10));
+            const junctionFade = Math.min(1.0, distOnBranch / 15.0);
+            
+            let disp = Math.pow(1.0 - Math.abs(noiseVal), 2.0) * params.barkDepth * junctionFade;
+            disp = Math.min(disp, localRad * 0.5); 
+            
+            const finalX = v.x + nVec.x * disp;
+            const finalY = Math.max(0, v.y + nVec.y * disp); // Keep floor clamp
+            const finalZ = v.z + nVec.z * disp;
+            
+            pos.setXYZ(i, finalX, finalY, finalZ);
+        }
+        
+        treeOnly.deleteAttribute('aFlow');
+        treeOnly.deleteAttribute('aRadius');
+        treeOnly.computeVertexNormals();
+        
+        const printableParts = [treeOnly.toNonIndexed()];
+        const baseGeo = createBaseGeometry(96);
+        if (baseGeo) printableParts.push(baseGeo.toNonIndexed());
+        
+        finalPrintableGeo = BufferGeometryUtils.mergeGeometries(printableParts);
+        finalPrintableGeo.computeVertexNormals();
+        
+        if(currentPreviewMesh) scene.remove(currentPreviewMesh);
+        currentPreviewMesh = new THREE.Mesh(finalPrintableGeo, createTreeMaterial(true));
+        currentPreviewMesh.castShadow = displayState.groundEnabled;
+        currentPreviewMesh.receiveShadow = true;
+        currentPreviewMesh.userData.isBaked = true;
+        currentPreviewMesh.userData.materialTheme = displayState.theme;
+        scene.add(currentPreviewMesh);
+        document.getElementById('btn-download').style.display = 'block';
+    } catch(e) { console.error(e); }
+    finally { document.getElementById('loader').style.display = 'none'; }
+}
+
+function downloadSTL() {
+    if(!finalPrintableGeo) return;
+    const src = finalPrintableGeo.index ? finalPrintableGeo.toNonIndexed() : finalPrintableGeo;
+    const pos = src.attributes.position;
+    const triangles = [];
+    const snap = 0.0005;
+    const areaEpsilonSq = 1e-18;
+
+    const transformForSTL = (i) => {
+        const x = Math.round(pos.getX(i) / snap) * snap;
+        const y = Math.round(pos.getZ(i) / snap) * snap;
+        const z = Math.round(pos.getY(i) / snap) * snap;
+        return new THREE.Vector3(x, y, z);
+    };
+
+    for(let i = 0; i < pos.count; i += 3) {
+        const a = transformForSTL(i);
+        const b = transformForSTL(i + 2); 
+        const c = transformForSTL(i + 1);
+        const normal = new THREE.Vector3()
+            .crossVectors(new THREE.Vector3().subVectors(b, a), new THREE.Vector3().subVectors(c, a));
+
+        if (!Number.isFinite(normal.lengthSq()) || normal.lengthSq() <= areaEpsilonSq) continue;
+        normal.normalize();
+        triangles.push({ normal, a, b, c });
+    }
+
+    const buffer = new ArrayBuffer(84 + triangles.length * 50);
+    const view = new DataView(buffer);
+    view.setUint32(80, triangles.length, true);
+
+    let offset = 84;
+    for (const tri of triangles) {
+        view.setFloat32(offset, tri.normal.x, true);
+        view.setFloat32(offset + 4, tri.normal.y, true);
+        view.setFloat32(offset + 8, tri.normal.z, true);
+        offset += 12;
+
+        for (const vertex of [tri.a, tri.b, tri.c]) {
+            view.setFloat32(offset, vertex.x, true);
+            view.setFloat32(offset + 4, vertex.y, true);
+            view.setFloat32(offset + 8, vertex.z, true);
+            offset += 12;
+        }
+        view.setUint16(offset, 0, true);
+        offset += 2;
+    }
+
+    const url = URL.createObjectURL(new Blob([buffer], {type: 'model/stl'}));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'arboretum-tree.stl';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function init() {
+    displayState.theme = readDisplayPreference('theme', 'dark') === 'light' ? 'light' : 'dark';
+    displayState.groundEnabled = readDisplayPreference('ground', 'true') !== 'false';
+    displayState.skyEnabled = readDisplayPreference('sky', 'false') === 'true';
+    const storedExposure = Number.parseFloat(readDisplayPreference('exposure', '1.20'));
+    displayState.exposure = Number.isFinite(storedExposure)
+        ? THREE.MathUtils.clamp(storedExposure, 0.7, 1.8)
+        : 1.20;
+
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(45, 1, 1, 10000);
+    camera.position.set(300, 300, 450);
+
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    document.getElementById('viewport').appendChild(renderer.domElement);
+
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.07;
+    controls.target.set(0, 100, 0);
+
+    ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
+    hemisphereLight = new THREE.HemisphereLight(0xc5e5ff, 0x3e2d23, 1.42);
+
+    keyLight = new THREE.DirectionalLight(0xffefd2, 2.55);
+    keyLight.position.set(220, 360, 260);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(2048, 2048);
+    keyLight.shadow.camera.left = -300;
+    keyLight.shadow.camera.right = 300;
+    keyLight.shadow.camera.top = 430;
+    keyLight.shadow.camera.bottom = -80;
+    keyLight.shadow.camera.near = 20;
+    keyLight.shadow.camera.far = 1100;
+    keyLight.shadow.bias = -0.00015;
+
+    fillLight = new THREE.DirectionalLight(0xa8d4ff, 1.28);
+    fillLight.position.set(-260, 170, 80);
+
+    rimLight = new THREE.DirectionalLight(0xffffff, 1.08);
+    rimLight.position.set(30, 230, -320);
+
+    scene.add(ambientLight, hemisphereLight, keyLight, fillLight, rimLight);
+    createGroundPlane();
+
+    const resizeRenderer = () => {
+        const viewport = document.getElementById('viewport');
+        const width = Math.max(1, viewport.clientWidth);
+        const height = Math.max(1, viewport.clientHeight);
+        renderer.setSize(width, height, false);
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+    };
+    window.addEventListener('resize', resizeRenderer);
+    resizeRenderer();
+
+    document.getElementById('btn-generate').onclick = () => {
+        currentSeed = Math.random();
+        document.getElementById('btn-download').style.display = 'none';
+        updatePreview();
+    };
+    document.getElementById('btn-bake').onclick = runBake;
+    document.getElementById('btn-download').onclick = downloadSTL;
+
+    document.querySelectorAll('.theme-option').forEach(button => {
+        button.onclick = () => {
+            displayState.theme = button.dataset.themeValue === 'light' ? 'light' : 'dark';
+            saveDisplayPreference('theme', displayState.theme);
+            applyDisplaySettings();
+        };
+    });
+
+    const groundToggle = document.getElementById('p-groundEnabled');
+    groundToggle.checked = displayState.groundEnabled;
+    groundToggle.onchange = () => {
+        displayState.groundEnabled = groundToggle.checked;
+        saveDisplayPreference('ground', displayState.groundEnabled);
+        applyDisplaySettings();
+    };
+
+    const skyToggle = document.getElementById('p-skyEnabled');
+    skyToggle.checked = displayState.skyEnabled;
+    skyToggle.onchange = () => {
+        displayState.skyEnabled = skyToggle.checked;
+        saveDisplayPreference('sky', displayState.skyEnabled);
+        applyDisplaySettings();
+    };
+
+    const exposureControl = document.getElementById('p-exposure');
+    const exposureValue = document.getElementById('v-exposure');
+    exposureControl.value = displayState.exposure.toFixed(2);
+    const syncExposure = () => {
+        displayState.exposure = Number.parseFloat(exposureControl.value);
+        exposureValue.textContent = `${displayState.exposure.toFixed(2)}×`;
+        exposureControl.setAttribute('aria-valuetext', `${displayState.exposure.toFixed(2)} times`);
+        saveDisplayPreference('exposure', displayState.exposure.toFixed(2));
+        applyDisplaySettings();
+    };
+    exposureControl.addEventListener('input', syncExposure);
+    exposureValue.textContent = `${displayState.exposure.toFixed(2)}×`;
+
+    // Each slider now declares its real UI range directly in the HTML.
+    // Per-control formatting prevents decimal values from being rounded away.
+    // paramScale is only retained where the UI is deliberately a percentage-like
+    // value but the growth engine expects a normalized multiplier.
+    const sliderConfig = {
+        barkDensity:             { decimals: 1 },
+        barkDepth:               { decimals: 1 },
+        barkY:                   { decimals: 1 },
+        height:                  { decimals: 0 },
+        trunk:                   { decimals: 1 },
+        unbranched:              { decimals: 0 },
+        crook:                   { decimals: 0 },
+        freq:                    { decimals: 0 },
+        branchReduction:         { decimals: 0 },
+        branchReductionRandom:   { decimals: 0 },
+        continuationReduction:   { decimals: 0 },
+        forkDominanceRandom:     { decimals: 0 },
+        branchAvoidance:         { decimals: 0 },
+        bushiness:               { decimals: 0 },
+        taper:                   { decimals: 2 },
+        minRad:                  { decimals: 1 },
+        overhang:                { decimals: 0 },
+        minPrintAngle:           { decimals: 0 },
+        gravity:                 { decimals: 2 },
+        extraGravity:            { decimals: 0, paramScale: 100, displayRaw: true },
+        extraGravityHeight:      { decimals: 0 },
+        roots:                   { decimals: 0, paramScale: 100, displayRaw: true },
+        base:                    { decimals: 0 },
+        baseThickness:           { decimals: 1 }
+    };
+
+    const bind = (id) => {
+        const el = document.getElementById('p-' + id);
+        const disp = document.getElementById('v-' + id);
+        const config = sliderConfig[id] || {};
+        if (!el || !disp) return;
+
+        const decimals = config.decimals ?? 0;
+        const paramScale = config.paramScale ?? 1;
+
+        const syncSlider = (refreshPreview = true) => {
+            const rawValue = parseFloat(el.value);
+            params[id] = rawValue / paramScale;
+
+            const displayValue = config.displayRaw ? rawValue : params[id];
+            const formattedValue = displayValue.toFixed(decimals);
+            disp.textContent = formattedValue;
+            el.setAttribute('aria-valuetext', formattedValue);
+
+            // Keep the allowed range easy to inspect without cluttering the panel.
+            const min = parseFloat(el.min);
+            const max = parseFloat(el.max);
+            disp.title = `Allowed range: ${min.toFixed(decimals)}–${max.toFixed(decimals)}`;
+
+            if (refreshPreview) {
+                document.getElementById('btn-download').style.display = 'none';
+                updatePreview();
+            }
+        };
+
+        el.addEventListener('input', () => syncSlider(true));
+        syncSlider(false);
+    };
+
+    Object.keys(sliderConfig).forEach(bind);
+
+    const baseEnabled = document.getElementById('p-baseEnabled');
+    const baseOptions = document.getElementById('base-options');
+    const syncBaseEnabled = () => {
+        params.baseEnabled = baseEnabled.checked;
+        baseOptions.classList.toggle('disabled', !params.baseEnabled);
+        document.getElementById('btn-download').style.display = 'none';
+        updatePreview();
+    };
+    baseEnabled.onchange = syncBaseEnabled;
+    params.baseEnabled = baseEnabled.checked;
+    baseOptions.classList.toggle('disabled', !params.baseEnabled);
+
+    document.querySelectorAll('input[name="baseProfile"]').forEach(el => {
+        el.onchange = () => {
+            if (!el.checked) return;
+            params.baseProfile = el.value;
+            document.getElementById('btn-download').style.display = 'none';
+            updatePreview();
+        };
+        if (el.checked) params.baseProfile = el.value;
+    });
+
+    applyDisplaySettings();
+    updatePreview();
+
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+    }
+    animate();
+}
+init();
+</script>
+</body>
+</html>
