@@ -3,7 +3,7 @@
 
 Make some nice trees, like this:
 
-![arboretum user interface, showing a 3d preview of a procedurally generated tree and some sliders to configure how the tree should be generated](https://github.com/rbricheno/arboretum/blob/main/Screenshot 2026-07-19 172255.png?raw=true)
+![arboretum user interface, showing a 3d preview of a procedurally generated tree and some sliders to configure how the tree should be generated]("https://github.com/rbricheno/arboretum/blob/main/Screenshot 2026-07-19 172255.png?raw=true")
 
 Highly configurable, explore and discover to find the tree you want.
 
